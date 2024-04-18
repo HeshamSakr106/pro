@@ -10,20 +10,6 @@
 # Author: Abderaouf KHICHANE, Ilhem FAJJARI, Ayoub BOUSSELMI
 # Software description: An open-source project providing Helm charts to deploy 5G components (Core + RAN) on top of Kubernetes
 #
-{{- with .Values.upf }}
-apiVersion: v1
-kind: Pod
-metadata:
-  name: "{{ include "free5gc-upf.fullname" $ }}-test-connection"
-  labels:
-    {{- include "free5gc-upf.labels" $ | nindent 4 }}
-  annotations:
-    "helm.sh/hook": test
-spec:
-  containers:
-    - name: wget
-      image: busybox
-      command: ['wget']
-      args: ['{{ .service.name }}:{{ .service.port }}']
-  restartPolicy: Never
-{{- end }}
+#
+# Visit the project at https://github.com/Orange-OpenSource/towards5gs-helm
+#

@@ -10,87 +10,85 @@
 # Author: Abderaouf KHICHANE, Ilhem FAJJARI, Ayoub BOUSSELMI
 # Software description: An open-source project providing Helm charts to deploy 5G components (Core + RAN) on top of Kubernetes
 #
-# Default values for free5gcControlPlane chart.
+# Default values for free5gcUserPlane chart.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-nameOverride: ""
-fullnameOverride: ""
 
 global:
   projectName: free5gc
-  nrf:
-    service:
-      name: nrf-nnrf
-      type: ClusterIP
-      port: "8000"
-      nodePort: "30800"
-  sbi:
-    scheme: http
-  upf:
-    n2if:  # NGAP
-      ipAddress: 10.100.50.249
-    service:
-      ngap:
-        enabled: false
-        name: upf-n2
-        port: 38412
-        nodeport: 31412
-        protocol: SCTP
-        type: NodePort
-  n2network:
-    name: n2network
+  userPlaneArchitecture: single  # possible values are "single" and "ulcl"
+  uesubnet: 10.1.0.0/16
+#Global network parametes
+  n4network:
+    enabled: true
+    name: n4network
+    type: ipvlan
     masterIf: eth0
-    subnetIP: 10.100.50.248
+    subnetIP: 10.100.50.240
     cidr: 29
-    gatewayIP: 10.100.50.254
-    excludeIP: 10.100.50.254
+    gatewayIP: 10.100.50.246
+    excludeIP: 10.100.50.246
+  n3network:
+    enabled: true
+    name: n3network
+    type: ipvlan
+    masterIf: eth0
+    subnetIP: 10.100.50.232
+    cidr: 29
+    gatewayIP: 10.100.50.238
+    excludeIP: 10.100.50.238
+  n6network:
+    enabled: true
+    name: n6network
+    type: ipvlan
+    masterIf: eth1
+    subnetIP: 10.100.100.0
+    cidr: 24
+    gatewayIP: 10.100.100.1
+    excludeIP: 10.100.100.254
+  n9network:
+    enabled: true
+    name: n9network
+    type: ipvlan
+    masterIf: eth0
+    subnetIP: 10.100.50.224
+    cidr: 29
+    gatewayIP: 10.100.50.230
+    excludeIP: 10.100.50.230
 
-initcontainers:
-  curl:
-    registry: towards5gs
-    image: initcurl
-    tag: "1.0.0"
-  busybox:
-    image: busybox
-    tag: "1.32.0"
-
-# This section can be used to override the default values in the MongoDB chart (remember MongoDB is a subchart of the free5gcControlplane chart since control plane NFs rely on it. 
-mongodb:
-  service:
-    name: mongodb
-    type: ClusterIP
-    port: 27017
-    nodePort: "30017"
-
-isNgapNeeded: true
 upf:
   name: upf
   replicaCount: 1
   image:
     name: towards5gs/free5gc-upf
     pullPolicy: Always
-  service:
-    name: upf-nupf
-    type: ClusterIP
-    port: 80
   configmap:
-    name: upf-configmap
+    wrapperAdditionalCommands: ""
+    # wrapperAdditionalCommands: |
+    #   echo "123" > /tmp/123
   volume:
-    name: upf-volume
     mount: /free5gc/config/
+
+  # network paramters
+  n3if:  # GTP-U
+    ipAddress: 10.100.50.233
+  n4if:  # PFCP
+    ipAddress: 10.100.50.241
+  n6if:  # DN
+    ipAddress: 10.100.100.12
+
   podAnnotations: {}
     # additional annotations
   imagePullSecrets: []
   podSecurityContext: {}
-  securityContext: {}
+  securityContext:
+    capabilities:
+      add: ["NET_ADMIN"]
   resources:
-    limits:
-      cpu: 150m
-      memory: 128Mi
     requests:
-      cpu: 150m
-      memory: 128Mi
+      cpu: 500m
+      memory: 512Mi
   readinessProbe:
     initialDelaySeconds: 0
     periodSeconds: 1
@@ -112,121 +110,208 @@ upf:
     maxReplicas: 100
     targetCPUUtilizationPercentage: 80
     # targetMemoryUtilizationPercentage: 80
-  ingress:
-    enabled: false
-    annotations: {}
-      # kubernetes.io/ingress.class: nginx
-      # kubernetes.io/tls-acme: "true"
-    hosts:
-      - host: chart-example.local
-        paths: []
-    tls: []
-    #  - secretName: chart-example-tls
-    #    hosts:
-    #      - chart-example.local
   configuration:
-    serviceNameList: |-
-        - nupf-comm
-        - nupf-evts
-        - nupf-mt
-        - nupf-loc
-        - nupf-oam
-    configuration: |-
-      upfName: UPF
-      serviceNameList:
-        - nupf-comm
-        - nupf-evts
-        - nupf-mt
-        - nupf-loc
-        - nupf-oam
-      servedGuamiList:
-        - plmnId:
-            mcc: 208
-            mnc: 93
-          upfId: cafe00
-      supportTaiList:
-        - plmnId:
-            mcc: 208
-            mnc: 93
-          tac: 1
-      plmnSupportList:
-        - plmnId:
-            mcc: 208
-            mnc: 93
-          snssaiList:
-            - sst: 1
-              sd: 010203
-            - sst: 1
-              sd: 112233
-      supportDnnList:
-        - internet
-      security:
-        integrityOrder:
-          - NIA2
-        cipheringOrder:
-          - NEA0
-      networkName:
-        full: free5GC
-        short: free      
-      locality: area1 # Name of the location where a set of UPF, SMF and UPFs are located
-      networkFeatureSupport5GS: # 5gs Network Feature Support IE, refer to TS 24.501
-        enable: true # append this IE in Registration accept or not
-        length: 1 # IE content length (uinteger, range: 1~3)
-        imsVoPS: 0 # IMS voice over PS session indicator (uinteger, range: 0~1)
-        emc: 0 # Emergency service support indicator for 3GPP access (uinteger, range: 0~3)
-        emf: 0 # Emergency service fallback indicator for 3GPP access (uinteger, range: 0~3)
-        iwkN26: 0 # Interworking without N26 interface indicator (uinteger, range: 0~1)
-        mpsi: 0 # MPS indicator (uinteger, range: 0~1)
-        emcN3: 0 # Emergency service support indicator for Non-3GPP access (uinteger, range: 0~1)
-        mcsi: 0 # MCS indicator (uinteger, range: 0~1)
-      t3502Value: 720
-      t3512Value: 3600
-      non3gppDeregistrationTimerValue: 3240
-      # retransmission timer for paging message
-      t3513:
-        enable: true     # true or false
-        expireTime: 6s   # default is 6 seconds
-        maxRetryTimes: 4 # the max number of retransmission
-      # retransmission timer for NAS Registration Accept message
-      t3522:
-        enable: true     # true or false
-        expireTime: 6s   # default is 6 seconds
-        maxRetryTimes: 4 # the max number of retransmission
-      # retransmission timer for NAS Registration Accept message
-      t3550:
-        enable: true     # true or false
-        expireTime: 6s   # default is 6 seconds
-        maxRetryTimes: 4 # the max number of retransmission
-      # retransmission timer for NAS Authentication Request/Security Mode Command message
-      t3560:
-        enable: true     # true or false
-        expireTime: 6s   # default is 6 seconds
-        maxRetryTimes: 4 # the max number of retransmission
-      # retransmission timer for NAS Notification message
-      t3565:
-        enable: true     # true or false
-        expireTime: 6s   # default is 6 seconds
-        maxRetryTimes: 4 # the max number of retransmission
-      t3570:
-        enable: true     # true or false
-        expireTime: 6s   # default is 6 seconds
-        maxRetryTimes: 4 # the max number of retransmission
-    # the kind of log output
-      # debugLevel: how detailed to output, value: trace, debug, info, warn, error, fatal, panic
-      # ReportCaller: enable the caller report or not, value: true or false
-    logger:
-      UPF:
-        debugLevel: info
-        ReportCaller: false
-      NAS:
-        debugLevel: info
-        ReportCaller: false
-      FSM:
-        debugLevel: info
-        ReportCaller: false
-      NGAP:
-        debugLevel: info
-        ReportCaller: false
-      Aper:
-        debugLevel: info
-        ReportCaller: false
+    dnnList: # The DNN list supported by UPF
+      - dnn: internet # Data Network Name
+        cidr: 10.1.0.0/17 # Classless Inter-Domain Routing for assigned IPv4 pool of UE
+        natifname: n6
+
+    logger: # log output setting
+      enable: true # true or false
+      level: info # how detailed to output, value: trace, debug, info, warn, error, fatal, panic
+      reportCaller: false # enable the caller report or not, value: true or false
+
+# The followed values will be considered in the case of choosing "ulcl" architecture for the user plane
+upf1:
+  name: upf1
+  replicaCount: 1
+  image:
+    name: towards5gs/free5gc-upf
+    pullPolicy: Always
+  configmap:
+    wrapperAdditionalCommands: ""
+    # wrapperAdditionalCommands: |
+    #   echo "123" > /tmp/123
+  volume:
+    mount: /free5gc/config/
+
+  # network paramters
+  n9if:  # GTP-U
+    ipAddress: 10.100.50.226
+  n4if:  # PFCP
+    ipAddress: 10.100.50.242
+  n6if:  # DN
+    ipAddress: 10.100.100.13
+
+  podAnnotations: {}
+    # additional annotations
+  imagePullSecrets: []
+  podSecurityContext: {}
+  securityContext:
+    capabilities:
+      add: ["NET_ADMIN"]
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  readinessProbe:
+    initialDelaySeconds: 0
+    periodSeconds: 1
+    timeoutSeconds: 1
+    failureThreshold:  40
+    successThreshold: 1
+  livenessProbe:
+    initialDelaySeconds: 120
+    periodSeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 3
+    successThreshold: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+  configuration:
+    dnnList: # The DNN list supported by UPF
+      - dnn: internet # Data Network Name
+        cidr: 10.1.0.0/17 # Classless Inter-Domain Routing for assigned IPv4 pool of UE
+        natifname: n6
+
+    logger: # log output setting
+      enable: true # true or false
+      level: info # how detailed to output, value: trace, debug, info, warn, error, fatal, panic
+      reportCaller: false # enable the caller report or not, value: true or false
+
+upf2:
+  name: upf2
+  replicaCount: 1
+  image:
+    name: towards5gs/free5gc-upf
+    pullPolicy: Always
+  configmap:
+    wrapperAdditionalCommands: ""
+    # wrapperAdditionalCommands: |
+    #   echo "123" > /tmp/123
+  volume:
+    mount: /free5gc/config/
+
+  # network paramters
+  n9if:  # GTP-U
+    ipAddress: 10.100.50.227
+  n4if:  # PFCP
+    ipAddress: 10.100.50.243
+  n6if:  # DN
+    ipAddress: 10.100.100.14
+
+  podAnnotations: {}
+    # additional annotations
+  imagePullSecrets: []
+  podSecurityContext: {}
+  securityContext:
+    capabilities:
+      add: ["NET_ADMIN"]
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  readinessProbe:
+    initialDelaySeconds: 0
+    periodSeconds: 1
+    timeoutSeconds: 1
+    failureThreshold:  40
+    successThreshold: 1
+  livenessProbe:
+    initialDelaySeconds: 120
+    periodSeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 3
+    successThreshold: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+  configuration:
+    dnnList: # The DNN list supported by UPF
+      - dnn: internet # Data Network Name
+        cidr: 10.1.0.0/17 # Classless Inter-Domain Routing for assigned IPv4 pool of UE
+        natifname: n6
+
+    logger: # log output setting
+      enable: true # true or false
+      level: info # how detailed to output, value: trace, debug, info, warn, error, fatal, panic
+      reportCaller: false # enable the caller report or not, value: true or false
+
+upfb:
+  name: upfb
+  replicaCount: 1
+  image:
+    name: towards5gs/free5gc-upf
+    pullPolicy: Always
+  configmap:
+    wrapperAdditionalCommands: ""
+    # wrapperAdditionalCommands: |
+    #   echo "123" > /tmp/123
+  volume:
+    mount: /free5gc/config/
+
+  # network paramters
+  n3if:  # GTP-U
+    ipAddress: 10.100.50.233
+  n9if:  # GTP-U
+    ipAddress: 10.100.50.225
+  n4if:  # PFCP
+    ipAddress: 10.100.50.241
+  n6if:  # DN
+    ipAddress: 10.100.100.12
+
+  podAnnotations: {}
+    # additional annotations
+  imagePullSecrets: []
+  podSecurityContext: {}
+  securityContext:
+    capabilities:
+      add: ["NET_ADMIN"]
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  readinessProbe:
+    initialDelaySeconds: 0
+    periodSeconds: 1
+    timeoutSeconds: 1
+    failureThreshold:  40
+    successThreshold: 1
+  livenessProbe:
+    initialDelaySeconds: 120
+    periodSeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 3
+    successThreshold: 1
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+  configuration:
+    dnnList: # The DNN list supported by UPF
+      - dnn: internet # Data Network Name
+        cidr: 10.1.0.0/17 # Classless Inter-Domain Routing for assigned IPv4 pool of UE
+        natifname: n6
+
+    logger: # log output setting
+      enable: true # true or false
+      level: info # how detailed to output, value: trace, debug, info, warn, error, fatal, panic
+      reportCaller: false # enable the caller report or not, value: true or false
