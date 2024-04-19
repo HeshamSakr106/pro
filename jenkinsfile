@@ -18,49 +18,49 @@ pipeline {
                     // Retrieve Dockerhub credentials from Jenkins
                     withCredentials([usernamePassword(credentialsId: 'Dockerhub', passwordVariable: 'DOCKERHUB_CREDENTIALS_PSW', usernameVariable: 'DOCKERHUB_CREDENTIALS_USR')]) {
                         // Log in to Dockerhub
-                        bat 'docker login -u ${DOCKERHUB_CREDENTIALS_USR} -p ${DOCKERHUB_CREDENTIALS_PSW}'
+                        sh 'docker login -u ${DOCKERHUB_CREDENTIALS_USR} -p ${DOCKERHUB_CREDENTIALS_PSW}'
                     }
                 }
             }
         }
         stage('Pulling base image from Dockerhub') {
             steps {
-                bat 'docker pull free5gc/base'
+                sh 'docker pull free5gc/base'
             }
         }
         stage('docker build') {
             steps {
-                bat(script: """
+                sh(script: """
                     docker images -a
-                    docker build -t free5gc/upf-base:latest . 
+                    docker build -t free5gc/upf:latest . 
                     docker images -a
                 """)
             }
         }
         stage('Scan Image for Common Vulnerabilities and Exposures') {
             steps {
-                bat 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v C:/Users/BADR/AppData/Local/Docker/wsl:/images aquasec/trivy image free5gc/upf-base:latest --output /images/trivy-report.json'
+                sh 'docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image free5gc/upf:latest --output /docker.sock/trivy-report.json'
             }
         }
 
         stage('Pushing to Dockerhub') {
             steps {
-                bat 'docker push free5gc/upf-base:latest'
+                sh 'docker push free5gc/upf-base:latest'
             }
         }
         stage('Build and Package Helm Chart') {
             steps {
-                bat 'helm package ./helm/'
+                sh 'helm package ./helm/'
             }
         }
         stage('Configure Kubernetes Context') {
             steps {
-                bat 'aws eks --region us-east-1 update-kubeconfig --name 5G-Core-Net'
+                sh 'aws eks --region us-east-1 update-kubeconfig --name 5G-Core-Net'
             }
         }
         stage('Deploy Helm Chart on EKS') {
             steps {
-                bat 'helm upgrade --install upf ./helm/'
+                sh 'helm upgrade --install upf ./helm/'
             }
         }
     }
@@ -68,8 +68,8 @@ pipeline {
         always {
             // Archiving Test Result
             archiveArtifacts artifacts: 'trivy-report.json', fingerprint: true
-            bat 'docker rmi free5gc/upf-base:latest'
-            bat 'docker rmi free5gc/base'
+            sh 'docker rmi free5gc/upf-base:latest'
+            sh 'docker rmi free5gc/base'
         }
     }
 }
